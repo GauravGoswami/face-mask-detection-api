@@ -1,0 +1,261 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: apply-manifests
+  namespace: fscloud-assets
+spec:
+  params:
+  - default: k8s
+    description: The directory in source that contains yaml manifests
+    name: manifest_dir
+    type: string
+  steps:
+  - args:
+    - |-
+      echo Applying manifests in $(inputs.params.manifest_dir) directory
+      oc apply -f $(inputs.params.manifest_dir)
+      echo -----------------------------------
+    command:
+    - /bin/bash
+    - -c
+    image: quay.io/openshift/origin-cli:latest
+    name: apply
+    resources: {}
+    workingDir: /workspace/source
+  workspaces:
+  - name: source
+---
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: git-cli
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: git
+    tekton.dev/displayName: "git cli"
+spec:
+  description: >-
+    This task can be used to perform git operations.
+    Git command that needs to be run can be passed as a script to
+    the task.This task needs authentication to git in order to push
+    after the git operation.
+  workspaces:
+    - name: output
+      description: A workspace that contains the fetched git repository.
+
+  params:
+    - name: BASE_IMAGE
+      description: |
+        The base image for the task.
+      type: string
+      default: docker.io/alpine/git:v2.26.2@sha256:23618034b0be9205d9cc0846eb711b12ba4c9b468efdd8a59aac1d7b1a23363f #tag: v2.26.2
+
+    - name: GIT_USER_NAME
+      type: string
+      description: |
+        Git user name for performing git operation.
+      default: ""
+
+    - name: GIT_USER_EMAIL
+      type: string
+      description: |
+        Git user email for performing git operation.
+      default: ""
+
+    - name: GIT_SCRIPT
+      description: The git script to run.
+      type: string
+      default: |
+        git help
+    - name: subdirectory
+      type: string
+      description: |
+        Sub Directory
+      default: ""      
+        
+  results:
+    - name: commit
+      description: The precise commit SHA after the git operation.
+
+  steps:
+    - name: git
+      image: $(params.BASE_IMAGE)
+      workingDir: $(workspaces.output.path)
+      script: |
+        # Setting up the config for the git.
+        git config --global user.email "$(params.GIT_USER_EMAIL)"
+        git config --global user.name "$(params.GIT_USER_NAME)"
+        $(params.GIT_SCRIPT)
+        RESULT_SHA="$(git rev-parse HEAD | tr -d '\n')"
+        EXIT_CODE="$?"
+        if [ "$EXIT_CODE" != 0 ]
+        then
+          exit $EXIT_CODE
+        fi
+        # Make sure we don't add a trailing newline to the result!
+        echo -n "$RESULT_SHA" > $(results.commit.path)
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: update-deploymentconfig
+spec:
+  params:
+    - name: deployment
+      description: The name of the deployment patch the image
+      type: string
+    - name: IMAGE
+      description: Location of image to be patched with
+      type: string
+  steps:
+    - name: patch
+      image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+      command: ["/bin/bash", "-c"]
+      args:
+        - |-
+          oc patch deploymentconfig $(inputs.params.deployment) --patch='{"spec":{"template":{"spec":{
+            "containers":[{
+              "name": "$(inputs.params.deployment)",
+              "image":"$(inputs.params.IMAGE)"
+            }]
+          }}}}'
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: helm-catalog-update
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: helm
+spec:
+  description: >-
+    These tasks will package the helm chart and push to git repo
+  params:
+    - name: sourcedir
+      description: The name of the deployment patch the image
+      type: string    
+    - name: targetdir
+      description: The name of the deployment patch the image
+      type: string        
+  workspaces:
+    - name: output
+  steps:
+    - name: helm-packge
+      image: docker.io/lachlanevenson/k8s-helm:v3.3.4
+      workingDir: $(workspaces.output.path)
+      script: |
+        echo package the helm chart
+        cd $(workspaces.output.path)/src
+        helm package helmcharts/.
+        cat ./helmcharts/Chart.yaml
+        cp *.tgz $(workspaces.output.path)/helmrepo/docs/mycharts/.
+        cd $(workspaces.output.path)/helmrepo/docs
+        helm repo index .
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: fscloud-asset-pipeline
+  namespace: fscloud-assets  
+spec:
+  params:
+  - description: name of the deployment to be patched
+    name: deployment-name
+    type: string
+  - description: url of the git repo for the code of deployment
+    name: git-url
+    type: string
+  - description: url of the git repo for the helm catalog
+    name: git-helm-url
+    type: string
+  - description: Sub directory of the git repo for the code of deployment
+    name: sourcerepo
+    type: string    
+  - description: Sub directory of the git repo for the code of deployment
+    name: targetrepo
+    type: string        
+  - default: main
+    description: revision to be used from repo of the code for deployment
+    name: git-revision
+    type: string
+  - default: main
+    description: revision to be used from repo of the code for deployment
+    name: helm-git-revision
+    type: string    
+  - description: image to be build from the code
+    name: IMAGE
+    type: string
+  tasks:
+  - name: fetch-repository
+    params:
+    - name: url
+      value: $(params.git-url)
+    - name: subdirectory
+      value: $(params.sourcerepo)
+    - name: deleteExisting
+      value: "true"
+    - name: revision
+      value: $(params.git-revision)
+    - name: verbose
+      value: "true"  
+    taskRef:
+      kind: ClusterTask
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: shared-workspace
+  - name: build-image
+    params:
+    - name: TLSVERIFY
+      value: "false"
+    - name: IMAGE
+      value: $(params.IMAGE)
+    - name: CONTEXT
+      value: $(params.sourcerepo)  
+    - name: DOCKERFILE
+      value: ./src/Dockerfile           
+      
+    runAfter:
+    - fetch-repository
+    taskRef:
+      kind: ClusterTask
+      name: buildah
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+  - name: apply-manifests
+    params:
+    - name: manifest_dir
+      value: $(params.sourcerepo)/k8s    
+    runAfter:
+    - build-image
+    taskRef:
+      kind: Task
+      name: apply-manifests
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+  - name: update-deployment
+    params:
+    - name: deployment
+      value: $(params.deployment-name)
+    - name: IMAGE
+      value: $(params.IMAGE)
+    runAfter:
+    - apply-manifests
+    taskRef:
+      kind: Task
+      name: update-deploymentconfig
+            
+
+  workspaces:
+  - name: shared-workspace
+
+---
+

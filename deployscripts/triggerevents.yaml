@@ -1,0 +1,73 @@
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: mask-detection
+spec:
+  params:
+  - name: git-repo-url
+    value: $(body.repository.url)
+  - name: git-repo-name
+    value: $(body.repository.name)
+  - name: git-revision
+    value: $(body.head_commit.id)
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: mask-detection
+spec:
+  params:
+  - name: git-repo-url
+    description: The git repository url
+  - name: git-revision
+    description: The git revision
+    default: release-tech-preview-2
+  - name: git-repo-name
+    description: The name of the deployment to be created / patched
+  resourcetemplates:
+  - apiVersion: tekton.dev/v1beta1
+    kind: PipelineRun
+    metadata:
+      name: fscloud-asset-pipeline-mask-detection-$(uid)
+    spec:
+      serviceAccountName: pipeline
+      pipelineRef:
+        name: fscloud-asset-pipeline
+      params:
+      - name: deployment-name
+        value: mask-detection
+      - name: git-url
+        value: $(tt.params.git-repo-url)
+      - name: git-revision
+        value: $(tt.params.git-revision)
+      - name: sourcerepo
+        value: "src"  
+      - name: targetrepo
+        value: "helmrepo"     
+      - name: git-helm-url
+        value: "https://github.com/GauravGoswami/face-mask-detection-api"
+      - name: helm-git
+        value: "main" 
+      - name: IMAGE
+        value: image-registry.openshift-image-registry.svc:5000/fscloud-assets/mask-detection
+      workspaces:
+      - name: shared-workspace
+        persistentvolumeclaim:
+          claimName: source-pvc
+        
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: mask-detection
+  lable:
+    maistra.io/expose-route: "true"
+spec:
+  serviceAccountName: pipeline
+  triggers:
+  - bindings:
+    - Ref: mask-detection
+    template:
+      name: mask-detection
+---
