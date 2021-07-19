@@ -36,18 +36,6 @@ spec:
             failureThreshold: 3
           ports:
             - containerPort: 8190
-          env:            
-            - name: apicpassword
-              valueFrom:
-                secretKeyRef:
-                  name: apic
-                  key:  password
-            - name: apicusername
-              valueFrom:
-                secretKeyRef:
-                  name: apic
-                  key: username                      
-
           resources:
             limits:
               cpu: 100m
