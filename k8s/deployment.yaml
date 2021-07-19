@@ -38,33 +38,33 @@ spec:
             - containerPort: 8190
           resources:
             limits:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 500m
+              memory: 1024Mi
             requests:
-              cpu: 4m
-              memory: 128Mi                
+              cpu: 100m
+              memory: 512Mi                
 ---
-apiVersion: autoscaling/v2beta2 
-kind: HorizontalPodAutoscaler
-metadata:
-  name: mask-detection-autoscale
-  labels:
-    app: mask-detection
-spec:
-  scaleTargetRef:
-    apiVersion: v1 
-    kind: DeploymentConfig 
-    name: mask-detection
-  minReplicas: 1 
-  maxReplicas: 2 
-  metrics: 
-  - type: Resource
-    resource:
-      name: cpu 
-      target:
-        type: AverageValue 
-        averageValue: 6m       
-  # - type: Resource
+# apiVersion: autoscaling/v2beta2 
+# kind: HorizontalPodAutoscaler
+# metadata:
+#   name: mask-detection-autoscale
+#   labels:
+#     app: mask-detection
+# spec:
+#   scaleTargetRef:
+#     apiVersion: v1 
+#     kind: DeploymentConfig 
+#     name: mask-detection
+#   minReplicas: 1 
+#   maxReplicas: 2 
+#   metrics: 
+#   - type: Resource
+#     resource:
+#       name: cpu 
+#       target:
+#         type: AverageValue 
+#         averageValue: 6m       
+#   # - type: Resource
   #   resource:
   #     name: memory 
   #     target:

@@ -123,6 +123,7 @@ spec:
               "image":"$(inputs.params.IMAGE)"
             }]
           }}}}'
+          oc rollout latest dc/$(inputs.params.deployment)
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task
