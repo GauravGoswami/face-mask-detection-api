@@ -50,7 +50,7 @@ spec:
       - name: helm-git
         value: "main" 
       - name: IMAGE
-        value: image-registry.openshift-image-registry.svc:5000/fscloud-assets/mask-detection
+        value: image-registry.openshift-image-registry.svc:5000/ml-asset/mask-detection
       workspaces:
       - name: shared-workspace
         persistentvolumeclaim:

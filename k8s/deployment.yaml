@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: mask-detection
-          image: image-registry.openshift-image-registry.svc:5000/garage-assets/mask-detection
+          image: image-registry.openshift-image-registry.svc:5000/ml-asset/mask-detection
           imagePullPolicy: Always
           readinessProbe: 
             tcpSocket:
