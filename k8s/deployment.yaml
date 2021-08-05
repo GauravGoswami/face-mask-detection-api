@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: mask-detection
-          image: image-registry.openshift-image-registry.svc:5000/ml-asset/mask-detection
+          image: quay.io/ramesh_poomalai_in/mask-detection
           imagePullPolicy: Always
           readinessProbe: 
             tcpSocket:
