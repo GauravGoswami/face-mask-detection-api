@@ -1,0 +1,48 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: fscloud-asset-pipeline-mask-detection-755m4
+  generation: 1
+  
+  namespace: ml-asset
+  labels:
+    tekton.dev/pipeline: fscloud-asset-pipeline
+    triggers.tekton.dev/eventlistener: mask-detection
+spec:
+  params:
+    - name: deployment-name
+      value: mask-detection
+    - name: git-url
+      value: 'https://github.com/GauravGoswami/face-mask-detection-api'
+    - name: git-revision
+      value: 1895122dc653fade2332089a0a1d317a77e53a91
+    - name: sourcerepo
+      value: src
+    - name: targetrepo
+      value: helmrepo
+    - name: git-helm-url
+      value: 'https://github.com/GauravGoswami/face-mask-detection-api'
+    - name: helm-git
+      value: main
+    - name: IMAGE
+      value: quay.io/ramesh_poomalai_in/mask-detection
+  pipelineRef:
+    name: fscloud-asset-pipeline
+  serviceAccountName: pipeline
+  timeout: 1h0m0s
+  workspaces:
+    - name: shared-workspace
+      persistentVolumeClaim:
+        claimName: source-pvc
+----
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: source-pvc
+  namespace: ml-asset
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

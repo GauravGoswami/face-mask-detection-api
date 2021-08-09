@@ -3,7 +3,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: apply-manifests
-  namespace: fscloud-assets
+  namespace: ml-asset
 spec:
   params:
   - default: k8s
@@ -163,7 +163,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
   name: fscloud-asset-pipeline
-  namespace: fscloud-assets  
+  namespace: ml-asset  
 spec:
   params:
   - description: name of the deployment to be patched
