@@ -259,4 +259,14 @@ spec:
   - name: shared-workspace
 
 ---
-
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: source-pvc
+  namespace: ml-asset
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
